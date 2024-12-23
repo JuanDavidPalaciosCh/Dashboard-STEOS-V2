@@ -34,8 +34,8 @@ while True:
 
     # Longitud y latitud cambia de forma x2 + y2 = 1
 
-    longitud = longitud + 0.00001
-    latitud = latitud + 0.00001
+    longitud = longitud + 0.0000005
+    latitud = latitud + 0.0000005
 
     data = {"value": generate_data()}
     try:

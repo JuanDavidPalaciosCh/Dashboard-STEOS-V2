@@ -1,8 +1,10 @@
 import dash
 import time
 import plotly
+import pandas as pd
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
+import plotly.express as px
 from dash.dependencies import Input, Output, State
 from dash import dcc, html
 from threading import Thread
@@ -20,17 +22,20 @@ app.title = "STEOS Dashboard"
 # Datos
 
 # Función para el ciclo continuo de recolección de datos
-velocidad = deque(maxlen=10000000)
-distancia = deque(maxlen=10000000)
-aceleracion = deque(maxlen=10000000)
-voltaje = deque(maxlen=10000000)
-corriente = deque(maxlen=10000000)
-potencia = deque(maxlen=10000000)
-potencia_prom = deque(maxlen=10000000)
-temperatura = deque(maxlen=10000000)
-latitud = deque(maxlen=10000000)
-longitud = deque(maxlen=10000000)
-data_store = deque(maxlen=10000000)
+velocidad = deque(maxlen=100000)
+distancia = deque(maxlen=100000)
+aceleracion = deque(maxlen=100000)
+voltaje = deque(maxlen=100000)
+corriente = deque(maxlen=100000)
+potencia = deque(maxlen=100000)
+potencia_prom = deque(maxlen=100000)
+temperatura = deque(maxlen=100000)
+latitud = deque(maxlen=100000)
+longitud = deque(maxlen=100000)
+data_store = deque(maxlen=100000)
+
+# zoom mapa
+default_zoom = 16
 
 
 def data_collector():
@@ -87,7 +92,7 @@ app.layout = html.Div(
                 dbc.Col(
                     dcc.Graph(
                         id="live-update-map",
-                        animate=True,
+                        config={"scrollZoom": True},
                     ),
                     width=12,  # En pantallas pequeñas ocupa todo el ancho
                     md=5,  # En pantallas medianas y grandes ocupa 5 columnas
@@ -460,8 +465,16 @@ def update_button_text(_):
 @app.callback(
     Output("live-update-map", "figure"),
     Input("interval-component2", "n_intervals"),
+    State("live-update-map", "relayoutData"),
 )
-def update_map(_):
+def update_map(n_intervals, relayout_data):
+    # Obtener el zoom actual del usuario
+    user_zoom = (
+        relayout_data.get("mapbox.zoom", default_zoom)
+        if relayout_data
+        else default_zoom
+    )
+
     # Obtener la última posición
     if len(latitud) > 0 and len(longitud) > 0:
         lat = latitud[-1]
@@ -473,26 +486,26 @@ def update_map(_):
     print(lat, lon)
 
     # Actualizar la posición del marcador
-    figure = {
-        "data": [
-            go.Scattermapbox(
-                lat=[lat],
-                lon=[lon],
-                mode="markers",
-                marker=go.scattermapbox.Marker(size=14),
-                text=["Current Position"],
-            )
-        ],
-        "layout": go.Layout(
-            mapbox=dict(
-                style="open-street-map",
-                center=dict(lat=lat, lon=lon),
-                zoom=15,
-            ),
-            uirevision=lat + lon,
-            margin=dict(l=0, r=0, t=0, b=0),
+    figure = px.scatter_mapbox(
+        pd.DataFrame(
+            [
+                {
+                    "lat": lat,
+                    "lon": lon,
+                }
+            ]
         ),
-    }
+        lat="lat",
+        lon="lon",
+        zoom=user_zoom,
+        size=[1],
+        color_discrete_sequence=["#7FCD5F"],
+        opacity=1,
+    )
+
+    figure.update_layout(
+        mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0}
+    )
 
     return figure
 
